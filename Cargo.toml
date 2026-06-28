@@ -2,7 +2,8 @@
 name = "sendit"
 version = "0.1.0"
 edition = "2021"
-description = "Push the current branch and open a GitHub PR with a human-authored title/body"
+description = "High-level library for creating PRs (e.g. GitHub) with Rust."
+license = "MIT or Apache-2.0"
 
 [[bin]]
 name = "sendit"

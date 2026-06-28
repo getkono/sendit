@@ -1,3 +1,7 @@
 # sendit
 
-Primitives to create GitHub PRs from [Rust](https://rust-lang.org/)
+High-level library for creating PRs (e.g. GitHub) with Rust.
+
+## License
+
+MIT or APACHE-2.0
