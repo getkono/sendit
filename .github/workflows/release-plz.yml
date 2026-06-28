@@ -3,8 +3,8 @@ name: Release-plz
 # On every push to master, release-plz either opens/updates a "release PR" (version bump +
 # CHANGELOG) or, once that PR is merged, cuts a GitHub Release + `v{version}` tag and publishes
 # the crate to crates.io. Cutting a release then fans out to the build + Homebrew jobs below.
-# crates.io publishing requires the CARGO_REGISTRY_TOKEN secret (see RELEASING.md);
-# without it the publish step fails and aborts the release. Docs: https://release-plz.dev
+# crates.io publishing uses Trusted Publishing (OIDC) — no stored token: the release job mints a
+# short-lived token via rust-lang/crates-io-auth-action. See RELEASING.md. Docs: https://release-plz.dev
 on:
   push:
     branches:
@@ -25,6 +25,7 @@ jobs:
     permissions:
       contents: write # push tags, create the GitHub Release
       pull-requests: read
+      id-token: write # mint the crates.io Trusted Publishing token (OIDC)
     # Surfaced to the binary/Homebrew jobs below so they only run when a release
     # was actually cut (not on every push to master).
     outputs:
@@ -37,22 +38,26 @@ jobs:
           persist-credentials: false
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      # Exchange the job's OIDC identity for a short-lived crates.io token. This is what
+      # replaces a stored CARGO_REGISTRY_TOKEN secret; it works because `sendit` has a
+      # Trusted Publisher configured for this repo + workflow on crates.io (see RELEASING.md).
+      - name: Authenticate to crates.io
+        id: crates-auth
+        uses: rust-lang/crates-io-auth-action@v1
       - name: Run release-plz
         id: release-plz
         uses: release-plz/action@v0.5
         with:
           command: release
         env:
-          # The build/update-tap jobs below run in THIS workflow (via `needs`), so they fire
-          # off the built-in GITHUB_TOKEN — no PAT required for binaries or the tap. A PAT
-          # (RELEASE_PLZ_TOKEN) is only nice-to-have so the GitHub Release shows the maintainer
-          # as author; it falls back to GITHUB_TOKEN until added. See RELEASING.md.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
-          # crates.io publish token. release-plz runs `cargo publish` as part of cutting a
-          # release, so this must be set for the crates.io release to go through. If it is
-          # missing the publish fails and takes the tag, GitHub Release, and Homebrew update
-          # down with it. Add CARGO_REGISTRY_TOKEN in repo secrets. See RELEASING.md.
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          # The built-in GITHUB_TOKEN covers everything release-plz needs here: pushing the
+          # `v{version}` tag and creating the GitHub Release. The build/update-tap jobs below
+          # run in THIS workflow (via `needs`) off the same token. No PAT required.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # release-plz runs `cargo publish` as part of cutting a release and reads the token
+          # from this env var. It's the ephemeral OIDC token from the step above — not a
+          # stored secret — so there is nothing to rotate.
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
   # Open/update the release PR (bumped version + changelog) for the next release.
   release-plz-pr:
@@ -78,9 +83,10 @@ jobs:
         with:
           command: release-pr
         env:
-          # A PAT (not the built-in GITHUB_TOKEN) is required for CI to run on the release PR,
-          # so branch protection can gate it. Falls back until the PAT secret is added.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          # The built-in GITHUB_TOKEN is enough to open/update the release PR. (A PAT would
+          # additionally let CI re-run on that PR — GITHUB_TOKEN-authored PRs don't trigger
+          # workflows — but master isn't branch-protected, so nothing gates on it. See RELEASING.md.)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ── Prebuilt binaries + Homebrew tap ──────────────────────────────────────
   # These run only when the release job above actually cut a release. release-plz
