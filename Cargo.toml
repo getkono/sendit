@@ -1,6 +1,6 @@
 [package]
 name = "sendit"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "High-level library for creating PRs (e.g. GitHub) with Rust."
 license = "MIT OR Apache-2.0"
