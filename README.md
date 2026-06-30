@@ -1,6 +1,6 @@
 # sendit
 
-High-level library for creating PRs (e.g. GitHub) with Rust.
+High-level library for creating PRs (e.g. GitHub) for Rust terminal applications.
 
 ## Platforms Supported
 
