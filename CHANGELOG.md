@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/getkono/sendit/compare/v0.1.1...v0.1.2) - 2026-06-30
+
+### Other
+
+- Clarify README description for Rust applications
+- Add supported platforms section to README
+
 ## [0.1.1](https://github.com/getkono/sendit/compare/v0.1.0...v0.1.1) - 2026-06-28
 
 ### Fixed
